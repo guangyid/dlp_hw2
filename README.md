@@ -1,4 +1,3 @@
-
 <h1>实验报告</h1>
 
 ### 1. LeNet中哪些结构或思想在ResNet中仍然存在？哪些已经不用？
@@ -49,9 +48,9 @@
 - 对照组1：resnet18（记作resnet_origin）
 - 对照组2：resnet50（记作resnet50_origin）
 - 实验组1：将resnet18最后的全局平均池化替换成全局最大池化（记作resnet_maxpool）
-- 实验组2：将resnet18最后的分类器(全局最大池化+全连接层)替换成alexnet的分类器(maxpooling+ReLU激活+全连接网络)*2（记作resnet_maxpool）
+- 实验组2：将resnet18最后的分类器(全局最大池化+全连接层)替换成alexnet的分类器(dropout+ReLU激活+全连接网络)*2（记作resnet_dropout）
 - 实验组3：将resnet50最后的全局平均池化替换成全局最大池化（记作resnet50_maxpool）
-- 实验组4：将resnet50最后的分类器(全局最大池化+全连接层)替换成alexnet的分类器(maxpooling+ReLU激活+全连接网络)*2（记作resnet50_maxpool）
+- 实验组4：将resnet50最后的分类器(全局最大池化+全连接层)替换成alexnet的分类器(dropout+ReLU激活+全连接网络)*2（记作resnet50_dropout）
 - 对照实验目的
 
   1. 对照组1与实验组1、对照组2与实验组3：讨论是全局最大池化好还是全局平均池化好
@@ -124,8 +123,7 @@
 
 #### 使用torchstat观察网络结构和计算性能
 
--  resnet18_origin和resnet_maxpool所得结果如下：
-
+- resnet18_origin和resnet_maxpool所得结果如下：
 - 两者只用最后的pooling操作不同，计算性能相差不大
 - <details>
    <summary>详细网络结构展开查看</summary>
@@ -289,95 +287,116 @@
 #### 性能对比
 
 - loss收敛情况（resnet18下）
-   - 图像说明：train_loss图左侧为右侧的平滑图，两者并无区别
-   - 实验现象
-      1. 训练集上的收敛速度：origin_model>maxpool_model>dropout_model
-      2. 测试集上的收敛速度：origin_model>maxpool,origin_model>dropout_model
-      3. 测试集上三者的loss均出现了先下降后上升的情况
-      4. 训练集三者都收敛到了0
-      5. 测试集最终loss:origin_model\< maxpool_model\< dropout_model
-   - 结论：
-       - 收敛速度：origin_model>maxpool_model>dropout_model
-       - 收敛效果：三者都有一定程度的过拟合现象，但dropout_model更为明显
-
+  - 图像说明：train_loss图左侧为右侧的平滑图，两者并无区别
+  - 实验现象
+    1. 训练集上的收敛速度：origin_model>maxpool_model>dropout_model
+    2. 测试集上的收敛速度：origin_model>maxpool,origin_model>dropout_model
+    3. 测试集上三者的loss均出现了先下降后上升的情况
+    4. 训练集三者都收敛到了0
+    5. 测试集最终loss:origin_model\< maxpool_model\< dropout_model
+  - 结论：
+    - 收敛速度：origin_model>maxpool_model>dropout_model
+    - 收敛效果：三者都有一定程度的过拟合现象，但dropout_model更为明显
 
 ![](image/resnet18train_loss.png)
 ![](image/resnet18val_loss.png)
 
 - accuracy情况（resnet18下）
+
   - 实验现象
-   1. ACC1与ACC5均是：origin_model>maxpool_model>dropout_model
-   2. ACC1：origin_model能达到35%，而maxpool_model与dropout_model相差不多，约31%
-   3. ACC5:origin_model、maxpool_model、dropout_model三者分的较开，约50-60%
+
+  1. ACC1与ACC5均是：origin_model>maxpool_model>dropout_model
+  2. ACC1：origin_model能达到35%，而maxpool_model与dropout_model相差不多，约31%
+  3. ACC5:origin_model、maxpool_model、dropout_model三者分的较开，约50-60%
 - ACC1
-   ![](image/resnet18train_acc1.png)
-   ![](image/resnet18val_acc1.png)
+  ![](image/resnet18train_acc1.png)
+  ![](image/resnet18val_acc1.png)
 - ACC5
-   ![](image/resnet18train_acc5.png)
-   ![](image/resnet18val_acc5.png)
-
+  ![](image/resnet18train_acc5.png)
+  ![](image/resnet18val_acc5.png)
 - f1度量（macro-F1）（resnet18下）
-- 在样本不均匀时，考虑查准率和查全率的f1-score是更合适的，但是恰好使用的数据集`Tiny-ImageNet`专门弄得十分的均匀，每一类都是50张，所以这里的f1-score跟ACC1差不多：origin_model>maxpool_model>dropout_model
-![](image/resnet18f1_score.png)
-
+- 在样本不均匀时，考虑查准率和查全率的f1-score是更合适的，但是恰好使用的数据集 `Tiny-ImageNet`专门弄得十分的均匀，每一类都是50张，所以这里的f1-score跟ACC1差不多：origin_model>maxpool_model>dropout_model
+  ![](image/resnet18f1_score.png)
 - 上述三个性能指标resnet18和resnet50现象差不多
-  - 有趣的是在epoch较小时，使用`Bottleneck`的resnet50的dropout_model，在loss和accuray上都要优于maxpool_model，这反应了dropout_model的较多参数在初期可以较快的拟合，但是在后期会陷入过拟合的问题
+
+  - 有趣的是在epoch较小时，使用 `Bottleneck`的resnet50的dropout_model，在loss和accuray上都要优于maxpool_model，这反应了dropout_model的较多参数在初期可以较快的拟合，但是在后期会陷入过拟合的问题
 
 ![](image/resnet50train_loss.png)
 ![](image/resnet50f1_score.png)
 
 #### 实验结论
+
 - resnet用全局平均池化替代了dropout+全连接网络，减少了参数量，提高了收敛速度，减弱了过拟合现象
 - 同时用全局平均池化反映了被池化的4个参数的共同信息，没有像全局最大池化一样丢失信息，提高了收敛速度和准确率
--  `BasicBlock`和 `Bottleneck`中上述两点均成立
+- `BasicBlock`和 `Bottleneck`中上述两点均成立
 - dropout_model在epoch较小时acc和loss于epoch较大时相比要好不少，说明它的过拟合现象比较严重
 
 #### 实验总结和心得体会
+
 - 全连接网络的大量参数有可能会引起严重的过拟合，dropout也没救回来
 - 实践出真知，debug一步一步看才搞懂了Tensor的通道数变化
 - 看的懂原理不一定能看懂paper，看的懂paper不一定能看懂torch的源码（alexnet的结构源码和paper竟然不一样，），看得懂源码不一定能写对，
 - 善用python的各种库
+
 ## 代码说明
 
 ### 复现要求
 
 - 推荐使用第十一次实验时老师提供的远端机（我的代码都是在这上面跑的，github上的是下载备份），密码在老师第十一次的word讲义上
+
 ```
 ssh root@202.38.95.226 -p 13234
 ```
+
 我的目录
+
 ```
 cd root\PB20030835
 ```
+
 - 复现命令(`1> *.txt`加不加都行)
+
   - 运行resnet18_maxpool
+
   ```
   python main.py -a resnet18_maxpool --epoch=30 1> resnet18_maxpool.txt
   ```
+
   - 运行resnet18_dropout
+
   ```
   python main.py -a resnet18_dropout --epoch=30 1> resnet18_dropout.txt
   ```
+
   - 运行resnet18_origin
+
   ```
   python main.py -a resnet18 --epoch=30 1> resnet18_origin.txt
   ```
+
   - 运行resnet50_maxpool
+
   ```
   python main.py -a resnet50_maxpool --epoch=30 1> resnet50_maxpool.txt
   ```
+
   - 运行resnet50_dropout
+
   ```
   python main.py -a resnet50_dropout --epoch=30 1> resnet50_dropout.txt
   ```
+
   - 运行resnet50_origin
+
   ```
   python main.py -a resnet50 --epoch=30 1> resnet50_origin.txt
   ```
+
 #### 代码结构
-  - `main.py`和`my_models.py`一个是训练文件，一个是模型文件
-  - `graph.ipnb`是解码输出的各个模型的`log.txt`,根据log作图
-  - `runs`是tensorboard的生成文件夹
-  - 以`_model`结尾的均是训练过程中产生的log文件
+
+- `main.py`和 `my_models.py`一个是训练文件，一个是模型文件
+- `graph.ipnb`是解码输出的各个模型的 `log.txt`,根据log作图
+- `runs`是tensorboard的生成文件夹
+- 以 `_model`结尾的均是训练过程中产生的log文件
 
 #### 区别已有和新增代码，大段新增代码已注释
