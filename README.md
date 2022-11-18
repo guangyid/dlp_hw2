@@ -320,19 +320,24 @@
 - 在样本不均匀时，考虑查准率和查全率的f1-score是更合适的，但是恰好使用的数据集`Tiny-ImageNet`专门弄得十分的均匀，每一类都是50张，所以这里的f1-score跟ACC1差不多：origin_model>maxpool_model>dropout_model
 ![](image/resnet18f1_score.png)
 
-- 上述三个性能指标resnet18和resnet50现象差不多，resnet50的图就不罗列了
+- 上述三个性能指标resnet18和resnet50现象差不多
+  - 有趣的是在epoch较小时，使用`Bottleneck`的resnet50的dropout_model，在loss和accuray上都要优于maxpool_model，这反应了dropout_model的较多参数在初期可以较快的拟合，但是在后期会陷入过拟合的问题
+
+![](image/resnet50train_loss.png)
+![](image/resnet50f1_score.png)
 
 #### 实验结论
 - resnet用全局平均池化替代了dropout+全连接网络，减少了参数量，提高了收敛速度，减弱了过拟合现象
 - 同时用全局平均池化反映了被池化的4个参数的共同信息，没有像全局最大池化一样丢失信息，提高了收敛速度和准确率
 -  `BasicBlock`和 `Bottleneck`中上述两点均成立
+- dropout_model在epoch较小时acc和loss于epoch较大时相比要好不少，说明它的过拟合现象比较严重
 
 #### 实验总结和心得体会
 - 全连接网络的大量参数有可能会引起严重的过拟合，dropout也没救回来
 - 实践出真知，debug一步一步看才搞懂了Tensor的通道数变化
 - 看的懂原理不一定能看懂paper，看的懂paper不一定能看懂torch的源码（alexnet的结构源码和paper竟然不一样，），看得懂源码不一定能写对，
 - 善用python的各种库
-## 代码说明来实现改变通道数和避免过拟合，从而
+## 代码说明
 
 ### 复现要求
 
@@ -344,7 +349,7 @@ ssh root@202.38.95.226 -p 13234
 ```
 cd root\PB20030835
 ```
-- 复现命令
+- 复现命令(`1> *.txt`加不加都行)
   - 运行resnet18_maxpool
   ```
   python main.py -a resnet18_maxpool --epoch=30 1> resnet18_maxpool.txt
