@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+##############以下新增###########################
 from torchvision._internally_replaced_utils import load_state_dict_from_url
 from torchvision.utils import _log_api_usage_once
 
@@ -13,6 +14,7 @@ class MODIFY(Enum):
     MAXPOOL = 1
     DROPOUT = 2
 
+##############以上新增###########################
 __all__ = [
     "ResNet",
     "resnet18",
@@ -213,6 +215,9 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
+
+
+##############以下新增###########################        
         if modify_type is MODIFY.ORIGIN:
             self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
             self.fc = nn.Linear(512 * block.expansion, num_classes)
@@ -232,6 +237,8 @@ class ResNet(nn.Module):
                 nn.Linear(512 * block.expansion, num_classes),
             )
             print("use resnet modified with dropout and linear")        
+
+##############以上新增###########################
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -305,6 +312,7 @@ class ResNet(nn.Module):
         x = self.layer3(x)#output [128,256,4,4]
         x = self.layer4(x)#output [128,512,2,2]#resnet50[128,2048,2,2]
 
+##############以下新增###########################
         if self.modify_type is MODIFY.ORIGIN:
             x = self.avgpool(x)#output [128,512,1,1]
             x = torch.flatten(x, 1)#output [128,512]#resnet50[128,2048]
@@ -318,6 +326,7 @@ class ResNet(nn.Module):
             x = self.classifier(x)
 
 
+##############以上新增###########################
         return x
 
     def forward(self, x: Tensor) -> Tensor:
@@ -340,6 +349,7 @@ def _resnet(
         model.load_state_dict(state_dict)
     return model
 
+##############以下新增###########################
 def resnet18_maxpool(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
@@ -370,6 +380,7 @@ def resnet18(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     """
     return _resnet("resnet18", BasicBlock, [2, 2, 2, 2], pretrained, progress, MODIFY.ORIGIN,**kwargs)
 
+##############以上新增###########################
 
 def resnet34(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-34 model from
@@ -382,6 +393,7 @@ def resnet34(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     return _resnet("resnet34", BasicBlock, [3, 4, 6, 3], pretrained, progress, **kwargs)
 
 
+##############以下新增###########################
 def resnet50_maxpool(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
@@ -390,14 +402,14 @@ def resnet50_maxpool(pretrained: bool = False, progress: bool = True, **kwargs: 
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress,progress,MODIFY.MAXPOOL, **kwargs)
+    return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress,MODIFY.MAXPOOL, **kwargs)
 
 def resnet50_dropout(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        pretrained (bool): If True, returns a model pre-trained on ImageNetn
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress,MODIFY.DROPOUT, **kwargs)
@@ -412,6 +424,7 @@ def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     """
     return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], pretrained, progress, MODIFY.ORIGIN, **kwargs)
 
+##############以上新增###########################
 
 def resnet101(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-101 model from

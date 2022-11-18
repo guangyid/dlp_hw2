@@ -21,6 +21,9 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
+
+##############以下新增###########################
+
 import my_models 
 import my_alexnet
 from torch.utils.tensorboard import SummaryWriter
@@ -42,6 +45,8 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: resnet18)')
+
+##############以上新增###########################
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=30, type=int, metavar='N',
@@ -321,11 +326,13 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
     # switch to train mode
     model.train()
 
+
+##############以下新增###########################
     init_img = torch.zeros((1,3,64,64), device=device)
     writer.add_graph(model, init_img)
     writer.flush()
     stat(model, (3,64,64))
-
+##############以上新增###########################
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
         # measure data loading time
@@ -383,9 +390,10 @@ def validate(val_loader, model, criterion, args,epoch):
                 # compute output
                 output = model(images)
                 loss = criterion(output, target)
+
+##############以下新增###########################
                 # writer3.add_scalar('val loss',loss.item(),epoch * len(val_loader) + i)
                 # writer3.flush()
-                #################################################################
                 _, predicted = output.max(1)
                 pre_mask = torch.zeros(output.size()).scatter_(1, predicted.cpu().view(-1, 1), 1.)
                 predict_num += pre_mask.sum(0)  # 得到数据中每类的预测量
@@ -415,6 +423,8 @@ def validate(val_loader, model, criterion, args,epoch):
             F1 = torch.where(torch.isnan(F1), torch.full_like(F1, 0), F1)
         accuracy_my = 100. * acc_num.sum(1) /target_num.sum(1)
         print('Test Acc {}, recal {}, precision {}, F1-score {}'.format(accuracy_my, recall.sum(), precision.sum(), 100.*F1.sum()/200.))
+##############以上新增###########################
+
 
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
