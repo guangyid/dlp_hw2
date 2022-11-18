@@ -21,13 +21,16 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Subset
-# from torch.utils.tensorboard import SummaryWriter
+import my_models 
+import my_alexnet
+from torch.utils.tensorboard import SummaryWriter
+from torchstat import stat
 
-# writer = SummaryWriter('runs/tiny_imagenet_resnet')
+writer = SummaryWriter('runs/resnet18_maxpool')
 
-model_names = sorted(name for name in models.__dict__
+model_names = sorted(name for name in my_models.__dict__
     if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
+    and callable(my_models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR', nargs='?', default='imagenet',
@@ -41,7 +44,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                         ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
+parser.add_argument('--epochs', default=30, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -148,7 +151,7 @@ def main_worker(gpu, ngpus_per_node, args):
         model = models.__dict__[args.arch](pretrained=True, num_classes=200)
     else:
         print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch](num_classes=200)
+        model = my_models.__dict__[args.arch](num_classes=200)
 
     if not torch.cuda.is_available():# and not torch.backends.mps.is_available():
         print('using CPU, this will be slow')
@@ -319,8 +322,9 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
     model.train()
 
     init_img = torch.zeros((1,3,64,64), device=device)
-    # writer.add_graph(model, init_img)
-    # writer.flush()
+    writer.add_graph(model, init_img)
+    writer.flush()
+    stat(model, (3,64,64))
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
@@ -328,12 +332,12 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
         data_time.update(time.time() - end)
 
         # move data to the same device as model
-        images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
+        images = images.to(device, non_blocking=True)#images.shape = [256,3,64,64] - >[batch_size,channels,H,W]
+        target = target.to(device, non_blocking=True)#target = [B],tenser([123,23,138...])
 
         
         # compute output
-        output = model(images)
+        output = model(images)#output = [256,200] -> [B,class_num] (-1,1)
         loss = criterion(output, target)
         # writer1.add_scalar('training loss', loss.item(),epoch * len(train_loader) + i)  
         # writer1.flush()      
@@ -361,6 +365,9 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
 def validate(val_loader, model, criterion, args,epoch):
 
     def run_validate(loader, base_progress=0):
+        target_num = torch.zeros((1, 200)) # n_classes为分类任务类别数量
+        predict_num = torch.zeros((1, 200))
+        acc_num = torch.zeros((1, 200))        
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(loader):
@@ -378,7 +385,15 @@ def validate(val_loader, model, criterion, args,epoch):
                 loss = criterion(output, target)
                 # writer3.add_scalar('val loss',loss.item(),epoch * len(val_loader) + i)
                 # writer3.flush()
-                
+                #################################################################
+                _, predicted = output.max(1)
+                pre_mask = torch.zeros(output.size()).scatter_(1, predicted.cpu().view(-1, 1), 1.)
+                predict_num += pre_mask.sum(0)  # 得到数据中每类的预测量
+                tar_mask = torch.zeros(output.size()).scatter_(1, target.data.cpu().view(-1, 1), 1.)
+                target_num += tar_mask.sum(0)  # 得到数据中每类的数量
+                acc_mask = pre_mask * tar_mask 
+                acc_num += acc_mask.sum(0) # 得到各类别分类正确的样本数量
+                ################################################################
                 # measure accuracy and record loss
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 # writer4.add_scalar('vla accurancy',acc5[0],epoch * len(val_loader) + i)
@@ -393,6 +408,13 @@ def validate(val_loader, model, criterion, args,epoch):
 
                 if i % args.print_freq == 0:
                     progress.display(i + 1)
+        recall = acc_num / target_num
+        precision = acc_num / predict_num
+        F1 = 2*recall * precision /(recall+ precision)
+        if(torch.any(torch.isnan(F1))):
+            F1 = torch.where(torch.isnan(F1), torch.full_like(F1, 0), F1)
+        accuracy_my = 100. * acc_num.sum(1) /target_num.sum(1)
+        print('Test Acc {}, recal {}, precision {}, F1-score {}'.format(accuracy_my, recall.sum(), precision.sum(), 100.*F1.sum()/200.))
 
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     losses = AverageMeter('Loss', ':.4e', Summary.NONE)
@@ -516,7 +538,7 @@ def accuracy(output, target, topk=(1,)):
 
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
+        correct = pred.eq(target.view(1, -1).expand_as(pred))#[5,B]
 
         res = []
         for k in topk:
